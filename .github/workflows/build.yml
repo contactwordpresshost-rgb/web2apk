@@ -1,0 +1,41 @@
+name: Build APK - AppTest
+
+on:
+  push: { branches: [ main ] }
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { java-version: '17', distribution: 'temurin' }
+      - name: Install image tools
+        run: sudo apt-get install -y imagemagick && pip install Pillow --quiet
+      - name: Generate icons from committed icon
+        run: |
+          mkdir -p app/src/main/res/mipmap-{hdpi,mdpi,xhdpi,xxhdpi,xxxhdpi}
+          if [ -f assets/app_icon.png ]; then
+            echo "Using custom icon..."
+            convert assets/app_icon.png -resize 72x72 app/src/main/res/mipmap-hdpi/ic_launcher.png
+            convert assets/app_icon.png -resize 48x48 app/src/main/res/mipmap-mdpi/ic_launcher.png
+            convert assets/app_icon.png -resize 96x96 app/src/main/res/mipmap-xhdpi/ic_launcher.png
+            convert assets/app_icon.png -resize 144x144 app/src/main/res/mipmap-xxhdpi/ic_launcher.png
+            convert assets/app_icon.png -resize 192x192 app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+          else
+            echo "No custom icon, using default..."
+            python3 - <<'PYEOF'
+from PIL import Image, ImageDraw
+for d,p in [("hdpi",72),("mdpi",48),("xhdpi",96),("xxhdpi",144),("xxxhdpi",192)]:
+    img=Image.new("RGBA",(p,p),(25,118,210,255))
+    m=p//6; ImageDraw.Draw(img).ellipse([m,m,p-m,p-m],fill=(255,255,255,200))
+    img.save(f"app/src/main/res/mipmap-{d}/ic_launcher.png")
+PYEOF
+          fi
+      - run: chmod +x gradlew
+      - run: ./gradlew assembleDebug --no-daemon
+      - run: ./gradlew assembleRelease --no-daemon
+      - uses: actions/upload-artifact@v4
+        with: { name: 'AppTest-apk', path: 'app/build/outputs/apk/**/*.apk', retention-days: 30 }
