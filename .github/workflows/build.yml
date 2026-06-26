@@ -30,14 +30,7 @@ jobs:
             convert assets/app_icon.png -resize 192x192 app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
           else
             echo "No custom icon, using default..."
-            python3 -c "
-from PIL import Image, ImageDraw
-for d,p in [('hdpi',72),('mdpi',48),('xhdpi',96),('xxhdpi',144),('xxxhdpi',192)]:
-    img=Image.new('RGBA',(p,p),(25,118,210,255))
-    m=p//6
-    ImageDraw.Draw(img).ellipse([m,m,p-m,p-m],fill=(255,255,255,200))
-    img.save(f'app/src/main/res/mipmap-{d}/ic_launcher.png')
-"
+            python3 generate_icons.py
           fi
       - run: chmod +x gradlew
       - run: ./gradlew assembleDebug --no-daemon
